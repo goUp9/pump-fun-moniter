@@ -6,7 +6,7 @@ import Client, {
     SubscribeUpdateTransaction,
 } from "@triton-one/yellowstone-grpc";
 import {ClientDuplexStream} from "@grpc/grpc-js";
-import {MessageAddressTableLookup, MessageHeader, PublicKey} from '@solana/web3.js';
+import {PublicKey} from '@solana/web3.js';
 
 //Interfaces
 interface CompiledInstruction {
@@ -36,6 +36,12 @@ interface MessageAddressTableLookup {
     readonlyIndexes: Uint8Array;
 }
 
+interface FormattedTransactionData {
+    signature: string;
+    slot: string;
+    [accountName: string]: string;
+}
+
 
 // Constants
 const ENDPOINT = "https://example.solana-mainnet.quiknode.pro:10000";
@@ -54,3 +60,76 @@ const ACCOUNTS_TO_INCLUDE = [{
     name: "mint",
     index: 0
 }];
+
+
+async function main(): Promise<void> {
+    const client = new Client(ENDPOINT, TOKEN, {});
+    const stream = await client.subscribe();
+    const request = createSubscribeRequest();
+
+    try {
+        await sendSubscribeRequest(stream, request);
+        console.log('Geyser connection established - watching new Pump.fun mints. \n');
+        await handleSubscribeEvents(stream);
+    } catch (error) {
+        console.error('Error insubscription process.', error);
+        stream.end();
+    }
+
+}
+
+// Helper functions
+function createSubscribeRequest(): SubscribeRequest {
+    return {
+        accounts: {},
+        slots: {},
+        transactions: {
+            pumpFun: {
+                accountInclude: FILTER_CONFIG.programIds,
+                accountExclude: [],
+                accountRequired: []
+            }
+        },
+        transactionsStatus: {},
+        entry: {},
+        blocks: {},
+        blocksMeta: {},
+        commitment: COMMITMENT,
+        accountsDataSlice: [],
+        ping: undefined,
+    };
+}
+
+function sendSubscribeRequest(
+    stream: ClientDuplexStream<SubscribeRequest, SubscribeUpdate>,
+    request: SubscribeRequest
+): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+        stream.write(request, (err: Error | null) => {
+            if (err) {
+                reject(err);
+            } else {
+                resolve();
+            }
+        });
+    });
+}
+
+function handleStreamEvents(stream: ClientDuplexStream<SubscribeRequest, SubscribeUpdate>): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+        stream.on('data', handleData);
+        stream.on("error", (error: Error) => {
+            console.error('Stream error:', error);
+            reject(error);
+            stream.end();
+        });
+        stream.on("end", () => {
+            console.log('Stream ended');
+            resolve();
+        });
+        stream.on("close", () => {
+            console.log('Stream closed');
+            resolve();
+        });
+    });
+}
