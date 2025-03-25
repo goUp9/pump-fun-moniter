@@ -133,3 +133,77 @@ function handleStreamEvents(stream: ClientDuplexStream<SubscribeRequest, Subscri
         });
     });
 }
+
+function handleData(data: SubscribeUpdate): void {
+    if (!isSubscribeUpdateTransaction(data) || !data.filters.includes('pumpFun')) {
+        return;
+    }
+
+    const transaction = data.transaction?.transaction;
+    const message = transaction?.transaction?.message;
+
+    if (!transaction || !message) {
+        return;
+    }
+
+    const matchingInstruction = message.instructions.find(matchesInstructionDiscriminator);
+    if (!matchingInstruction) {
+        return;
+    }
+
+    const formattedSignature = convertSignature(transaction.signature);
+    const formattedData = formatData(message, formattedSignature.base58, data.transaction.slot);
+
+    if (formattedData) {
+        console.log("======================================💊 New Pump.fun Mint Detected!======================================");
+        console.table(formattedData);
+        console.log("\n");
+    }
+}
+
+function isSubscribeUpdateTransaction(data: SubscribeUpdate): data is SubscribeUpdate & { transaction: SubscribeUpdateTransaction } {
+    return (
+        'transaction' in data &&
+        typeof data.transaction === 'object' &&
+        data.transaction !== null &&
+        'slot' in data.transaction &&
+        'transaction' in data.transaction
+    );
+}
+
+function convertSignature(signature: Uint8Array): { base58: string } {
+    return { base58: bs58.encode(Buffer.from(signature)) };
+}
+
+function formatData(message: Message, signature: string, slot: string): FormattedTransactionData | undefined {
+    const matchingInstruction = message.instructions.find(matchesInstructionDiscriminator);
+
+    if (!matchingInstruction) {
+        return undefined;
+    }
+
+    const accountKeys = message.accountKeys;
+    const includedAccounts = ACCOUNTS_TO_INCLUDE.reduce<Record<string, string>>((acc, { name, index }) => {
+        const accountIndex = matchingInstruction.accounts[index];
+        const publicKey = accountKeys[accountIndex];
+        acc[name] = new PublicKey(publicKey).toBase58();
+        return acc;
+    }, {});
+
+    return {
+        signature,
+        slot,
+        ...includedAccounts
+    };
+}
+
+function matchesInstructionDiscriminator(ix: CompiledInstruction): boolean {
+    return ix?.data && FILTER_CONFIG.instructionDiscriminators.some(discriminator =>
+        Buffer.from(discriminator).equals(ix.data.slice(0, 8))
+    );
+}
+
+main().catch((err) => {
+    console.error('Unhandled error in main:', err);
+    process.exit(1);
+});
