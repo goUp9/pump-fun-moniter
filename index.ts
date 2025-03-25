@@ -1,4 +1,3 @@
-
 import Client, {
     CommitmentLevel,
     SubscribeRequest,
@@ -7,6 +6,7 @@ import Client, {
 } from "@triton-one/yellowstone-grpc";
 import {ClientDuplexStream} from "@grpc/grpc-js";
 import {PublicKey} from '@solana/web3.js';
+import bs58 from 'bs58';
 
 //Interfaces
 interface CompiledInstruction {
@@ -31,7 +31,7 @@ interface MessageHeader {
 }
 
 interface MessageAddressTableLookup {
-    accountkey: Uint8Array;
+    accountKey: Uint8Array;
     writableIndexes: Uint8Array;
     readonlyIndexes: Uint8Array;
 }
@@ -70,7 +70,7 @@ async function main(): Promise<void> {
     try {
         await sendSubscribeRequest(stream, request);
         console.log('Geyser connection established - watching new Pump.fun mints. \n');
-        await handleSubscribeEvents(stream);
+        await handleStreamEvents(stream);
     } catch (error) {
         console.error('Error insubscription process.', error);
         stream.end();
