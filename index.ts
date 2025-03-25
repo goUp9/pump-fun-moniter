@@ -37,4 +37,20 @@ interface MessageAddressTableLookup {
 }
 
 
+// Constants
+const ENDPOINT = "https://example.solana-mainnet.quiknode.pro:10000";
+const TOKEN = "TOKEN_ID";
+const PUMP_FUN_PROGRAM_ID = '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P';
+const PUMP_FUN_CREATE_IX_DISCRIMINATOR = Buffer.from([24, 30, 200, 40, 5, 28, 7, 119]);
+const COMMITMENT = CommitmentLevel.CONFIRMED;
 
+// Configuration
+const FILTER_CONFIG = {
+    programIds: [PUMP_FUN_PROGRAM_ID],
+    instructionDiscriminators: [PUMP_FUN_CREATE_IX_DISCRIMINATOR]
+};
+
+const ACCOUNTS_TO_INCLUDE = [{
+    name: "mint",
+    index: 0
+}];
